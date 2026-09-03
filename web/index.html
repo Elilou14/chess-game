@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chess Game</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="page">
+    <h1>Chess Game</h1>
+
+    <div class="layout">
+      <section class="board-panel">
+        <div id="board" class="board" role="grid" aria-label="Echiquier"></div>
+
+        <div id="promotion-modal" class="promotion-modal" hidden>
+          <div class="promotion-box">
+            <p>Promouvoir en :</p>
+            <div id="promotion-choices" class="promotion-choices"></div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="sidebar">
+        <div class="card">
+          <h2>Partie</h2>
+          <label class="field">
+            <span>Niveau de l'IA</span>
+            <select id="difficulty-select">
+              <option value="facile">Facile</option>
+              <option value="moyen" selected>Moyen</option>
+              <option value="difficile">Difficile</option>
+              <option value="impossible">Impossible</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Vous jouez</span>
+            <select id="color-select">
+              <option value="w" selected>Blancs</option>
+              <option value="b">Noirs</option>
+            </select>
+          </label>
+          <button id="new-game-btn" class="primary-btn">Nouvelle partie</button>
+          <button id="undo-btn" class="secondary-btn">Annuler le dernier coup</button>
+        </div>
+
+        <div class="card">
+          <p id="status-message" class="status-message">A vous de jouer.</p>
+        </div>
+
+        <div class="card">
+          <h2>Coups</h2>
+          <ol id="move-list" class="move-list"></ol>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <script type="module" src="script.js"></script>
+</body>
+</html>
