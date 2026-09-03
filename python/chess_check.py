@@ -86,11 +86,18 @@ def is_in_check(state, color):
     return is_square_attacked(state["board"], king_square[0], king_square[1], opposite_color(color))
 
 
-def generate_legal_moves(state):
-    """Pseudo-legal moves, filtered to those that don't leave the mover's own king in check."""
+def generate_legal_moves(state, pseudo_legal_moves=None):
+    """
+    Filter pseudo-legal moves down to those that don't leave the
+    mover's own king in check. Defaults to ordinary-piece pseudo-legal
+    moves; chess_special.py passes in a list that also includes
+    castling and en passant so those get the same safety filter.
+    """
     mover = state["turn"]
+    if pseudo_legal_moves is None:
+        pseudo_legal_moves = generate_pseudo_legal_moves(state)
     legal = []
-    for move in generate_pseudo_legal_moves(state):
+    for move in pseudo_legal_moves:
         resulting_state = apply_move(state, move)
         if not is_in_check(resulting_state, mover):
             legal.append(move)
