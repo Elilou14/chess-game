@@ -54,6 +54,48 @@ def copy_board(board):
     return [row[:] for row in board]
 
 
+_FEN_PIECE_MAP = {"p": "P", "n": "N", "b": "B", "r": "R", "q": "Q", "k": "K"}
+
+
+def load_fen(fen):
+    """
+    Parse a FEN string into a state. Used to set up known test
+    positions (perft suites are always given as FEN) without having
+    to place 32 pieces by hand.
+    """
+    board_part, turn, castling_part, en_passant_part, *rest = fen.split()
+    halfmove_clock = int(rest[0]) if len(rest) > 0 else 0
+    fullmove_number = int(rest[1]) if len(rest) > 1 else 1
+
+    board = [[None] * 8 for _ in range(8)]
+    for row, rank_str in enumerate(board_part.split("/")):
+        col = 0
+        for char in rank_str:
+            if char.isdigit():
+                col += int(char)
+            else:
+                color = "w" if char.isupper() else "b"
+                board[row][col] = {"type": _FEN_PIECE_MAP[char.lower()], "color": color}
+                col += 1
+
+    castling = {
+        "wK": "K" in castling_part,
+        "wQ": "Q" in castling_part,
+        "bK": "k" in castling_part,
+        "bQ": "q" in castling_part,
+    }
+    en_passant = None if en_passant_part == "-" else square_to_rc(en_passant_part)
+
+    return {
+        "board": board,
+        "turn": turn,
+        "castling": castling,
+        "en_passant": en_passant,
+        "halfmove_clock": halfmove_clock,
+        "fullmove_number": fullmove_number,
+    }
+
+
 def initial_state():
     board = [[None] * 8 for _ in range(8)]
     for col in range(8):

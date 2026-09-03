@@ -8,6 +8,7 @@ from chess_logic import (
     apply_move,
     generate_pseudo_legal_moves,
     initial_state,
+    load_fen,
     rc_to_square,
     square_to_rc,
 )
@@ -357,6 +358,32 @@ class ApplyMoveTests(unittest.TestCase):
         new_state = apply_move(state, capture)
         self.assertFalse(new_state["castling"]["bQ"])
         self.assertTrue(new_state["castling"]["bK"])
+
+
+class LoadFenTests(unittest.TestCase):
+    def test_starting_position_fen_matches_initial_state(self):
+        state = load_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+        self.assertEqual(state["board"], initial_state()["board"])
+        self.assertEqual(state["turn"], "w")
+        self.assertEqual(state["castling"], {"wK": True, "wQ": True, "bK": True, "bQ": True})
+        self.assertIsNone(state["en_passant"])
+
+    def test_partial_castling_rights(self):
+        state = load_fen("4k3/8/8/8/8/8/8/4K2R w K - 0 1")
+        self.assertEqual(state["castling"], {"wK": True, "wQ": False, "bK": False, "bQ": False})
+        self.assertEqual(state["board"][7][7], {"type": "R", "color": "w"})
+        self.assertEqual(state["board"][0][4], {"type": "K", "color": "b"})
+
+    def test_en_passant_square_and_move_counters(self):
+        state = load_fen("4k3/8/8/8/4Pp2/8/8/4K3 b - e3 0 5")
+        self.assertEqual(state["en_passant"], square_to_rc("e3"))
+        self.assertEqual(state["turn"], "b")
+        self.assertEqual(state["halfmove_clock"], 0)
+        self.assertEqual(state["fullmove_number"], 5)
+
+    def test_empty_square_run_lengths(self):
+        state = load_fen("8/8/8/8/8/8/8/8 w - - 0 1")
+        self.assertTrue(all(cell is None for row in state["board"] for cell in row))
 
 
 if __name__ == "__main__":
