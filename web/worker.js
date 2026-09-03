@@ -7,7 +7,7 @@
 import { chooseAiMove } from "./chess-ai.js";
 
 self.onmessage = (event) => {
-  const { state, difficulty } = event.data;
+  const { state, difficulty, generation } = event.data;
   const move = chooseAiMove(state, difficulty);
-  self.postMessage({ move });
+  self.postMessage({ move, generation });
 };

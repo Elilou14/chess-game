@@ -1,6 +1,7 @@
 import { findKing, isInCheck } from "./chess-check.js";
 import { getGameStatus, positionKey } from "./chess-end.js";
 import { applyMove, initialState } from "./chess-logic.js";
+import { formatSan } from "./chess-notation.js";
 import { generateLegalMoves } from "./chess-special.js";
 
 const PIECE_GLYPHS = { K: "♚", Q: "♛", R: "♜", B: "♝", N: "♞", P: "♟" };
@@ -17,22 +18,38 @@ const COLOR_LABELS = { w: "Blancs", b: "Noirs" };
 
 const boardEl = document.getElementById("board");
 const statusEl = document.getElementById("status-message");
+const moveListEl = document.getElementById("move-list");
 const difficultySelect = document.getElementById("difficulty-select");
 const colorSelect = document.getElementById("color-select");
+const newGameBtn = document.getElementById("new-game-btn");
+const undoBtn = document.getElementById("undo-btn");
 const promotionModal = document.getElementById("promotion-modal");
 const promotionChoicesEl = document.getElementById("promotion-choices");
 
 const aiWorker = new Worker("worker.js", { type: "module" });
 
-let state = initialState();
 let humanColor = colorSelect.value;
-let difficulty = difficultySelect.value;
-let positionHistory = [positionKey(state)];
-let legalMoves = generateLegalMoves(state);
+let state;
+let stateHistory;
+let positionHistory;
+let moveHistory; // [{ move, san }]
+let legalMoves;
 let selectedSquare = null;
-let lastMove = null;
 let gameOver = false;
 let aiThinking = false;
+let gameGeneration = 0;
+
+function resetGameState() {
+  state = initialState();
+  stateHistory = [state];
+  positionHistory = [positionKey(state)];
+  moveHistory = [];
+  legalMoves = generateLegalMoves(state);
+  selectedSquare = null;
+  gameOver = false;
+  aiThinking = false;
+  promotionModal.hidden = true;
+}
 
 function perspectiveOrder() {
   return humanColor === "w" ? [0, 1, 2, 3, 4, 5, 6, 7] : [7, 6, 5, 4, 3, 2, 1, 0];
@@ -42,9 +59,14 @@ function legalDestinationsFrom(row, col) {
   return legalMoves.filter((m) => m.from[0] === row && m.from[1] === col);
 }
 
+function lastMove() {
+  return moveHistory.length ? moveHistory[moveHistory.length - 1].move : null;
+}
+
 function renderBoard() {
   boardEl.innerHTML = "";
   const order = perspectiveOrder();
+  const last = lastMove();
 
   const checkedKingSquare = isInCheck(state, state.turn) ? findKing(state.board, state.turn) : null;
   const selectedDestinations = selectedSquare ? legalDestinationsFrom(...selectedSquare) : [];
@@ -58,7 +80,7 @@ function renderBoard() {
       if (selectedSquare && selectedSquare[0] === row && selectedSquare[1] === col) {
         classes.push("selected");
       }
-      if (lastMove && ((lastMove.from[0] === row && lastMove.from[1] === col) || (lastMove.to[0] === row && lastMove.to[1] === col))) {
+      if (last && ((last.from[0] === row && last.from[1] === col) || (last.to[0] === row && last.to[1] === col))) {
         classes.push("last-move");
       }
       if (checkedKingSquare && checkedKingSquare[0] === row && checkedKingSquare[1] === col) {
@@ -118,31 +140,65 @@ function updateStatusMessage() {
   }
 }
 
+function renderMoveList() {
+  moveListEl.innerHTML = "";
+  for (let i = 0; i < moveHistory.length; i += 2) {
+    const li = document.createElement("li");
+
+    const numberEl = document.createElement("span");
+    numberEl.className = "move-number";
+    numberEl.textContent = `${i / 2 + 1}.`;
+
+    const whiteEl = document.createElement("span");
+    whiteEl.textContent = moveHistory[i]?.san ?? "";
+
+    const blackEl = document.createElement("span");
+    blackEl.textContent = moveHistory[i + 1]?.san ?? "";
+
+    li.append(numberEl, whiteEl, blackEl);
+    moveListEl.appendChild(li);
+  }
+  moveListEl.scrollTop = moveListEl.scrollHeight;
+}
+
+function updateUndoButton() {
+  undoBtn.disabled = aiThinking || stateHistory.length <= 1;
+}
+
 function render() {
   renderBoard();
   updateStatusMessage();
+  updateUndoButton();
 }
 
 function requestAiMove() {
   aiThinking = true;
   render();
-  aiWorker.postMessage({ state, difficulty });
+  const generation = gameGeneration;
+  aiWorker.postMessage({ state, difficulty: difficultySelect.value, generation });
 }
 
 aiWorker.onmessage = (event) => {
+  const { move, generation } = event.data;
+  if (generation !== gameGeneration) return; // stale reply from before a new game/undo
   aiThinking = false;
-  const { move } = event.data;
   if (move) commitMove(move);
 };
 
 function commitMove(move) {
-  state = applyMove(state, move);
-  lastMove = move;
+  const legalMovesBeforeMove = legalMoves;
+  const nextState = applyMove(state, move);
+  const san = formatSan(move, legalMovesBeforeMove, nextState);
+
+  state = nextState;
+  stateHistory.push(state);
   positionHistory.push(positionKey(state));
+  moveHistory.push({ move, san });
   legalMoves = generateLegalMoves(state);
   selectedSquare = null;
 
   render();
+  renderMoveList();
 
   if (getGameStatus(state, positionHistory) !== "ongoing") return;
   if (state.turn !== humanColor) requestAiMove();
@@ -197,5 +253,35 @@ boardEl.addEventListener("click", (event) => {
   handleSquareClick(Number(squareEl.dataset.row), Number(squareEl.dataset.col));
 });
 
+newGameBtn.addEventListener("click", () => {
+  gameGeneration += 1; // invalidate any in-flight AI computation
+  humanColor = colorSelect.value;
+  resetGameState();
+  render();
+  renderMoveList();
+  if (state.turn !== humanColor) requestAiMove();
+});
+
+undoBtn.addEventListener("click", () => {
+  if (aiThinking || stateHistory.length <= 1) return;
+  gameGeneration += 1; // invalidate any in-flight AI computation (defensive; button is disabled while aiThinking)
+
+  do {
+    stateHistory.pop();
+    positionHistory.pop();
+    moveHistory.pop();
+  } while (stateHistory.length > 1 && stateHistory[stateHistory.length - 1].turn !== humanColor);
+
+  state = stateHistory[stateHistory.length - 1];
+  legalMoves = generateLegalMoves(state);
+  selectedSquare = null;
+  aiThinking = false;
+
+  render();
+  renderMoveList();
+});
+
+resetGameState();
 render();
+renderMoveList();
 if (state.turn !== humanColor) requestAiMove();
