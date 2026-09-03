@@ -132,22 +132,22 @@ h2 {
   cursor: pointer;
 }
 
+/*
+  Both colors render in the same ink -- hollow glyphs (White) vs
+  filled glyphs (Black) carry the color distinction by shape, the way
+  printed chess diagrams do. This is what actually stays legible
+  across browsers: a same-glyph-set + CSS-color/-webkit-text-stroke
+  approach depends on a WebKit-only property (Firefox ignores it
+  entirely) and washes out on small glyphs like the pawn.
+*/
 .piece {
   position: relative;
   font-size: min(7.5vw, 46px);
   line-height: 1;
   user-select: none;
   pointer-events: none;
-}
-
-.piece.white {
-  color: #fbfbfb;
-  -webkit-text-stroke: 1.4px #1c1c1c;
-  text-stroke: 1.4px #1c1c1c;
-}
-
-.piece.black {
-  color: #1a1a1a;
+  color: #1c1c1c;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
 }
 
 .file-labels,
@@ -302,6 +302,7 @@ h2 {
   border-radius: 8px;
   border: 1px solid var(--border);
   background: #0b1220;
+  color: var(--text);
   cursor: pointer;
   display: flex;
   align-items: center;

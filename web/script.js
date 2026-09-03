@@ -4,7 +4,14 @@ import { applyMove, initialState } from "./chess-logic.js";
 import { formatSan } from "./chess-notation.js";
 import { generateLegalMoves } from "./chess-special.js";
 
-const PIECE_GLYPHS = { K: "♚", Q: "♛", R: "♜", B: "♝", N: "♞", P: "♟" };
+// Hollow glyphs for White, filled for Black -- shape carries the
+// distinction, not CSS color, so pieces stay legible regardless of
+// browser/font support (Firefox in particular ignores the
+// -webkit-text-stroke trick a same-glyph-set approach would need).
+const PIECE_GLYPHS = {
+  w: { K: "♔", Q: "♕", R: "♖", B: "♗", N: "♘", P: "♙" },
+  b: { K: "♚", Q: "♛", R: "♜", B: "♝", N: "♞", P: "♟" },
+};
 
 const GAME_OVER_MESSAGES = {
   checkmate: (winnerLabel) => `Echec et mat. Victoire des ${winnerLabel}.`,
@@ -104,7 +111,7 @@ function renderBoard() {
       if (piece) {
         const pieceEl = document.createElement("span");
         pieceEl.className = `piece ${piece.color === "w" ? "white" : "black"}`;
-        pieceEl.textContent = PIECE_GLYPHS[piece.type];
+        pieceEl.textContent = PIECE_GLYPHS[piece.color][piece.type];
         square.appendChild(pieceEl);
       }
 
@@ -211,9 +218,7 @@ function showPromotionModal(candidates) {
   for (const move of candidates) {
     const btn = document.createElement("button");
     btn.className = "promotion-choice";
-    btn.textContent = PIECE_GLYPHS[move.promotion];
-    btn.style.color = color === "w" ? "#fbfbfb" : "#1a1a1a";
-    if (color === "w") btn.style.webkitTextStroke = "1.4px #1c1c1c";
+    btn.textContent = PIECE_GLYPHS[color][move.promotion];
     btn.addEventListener("click", () => {
       promotionModal.hidden = true;
       commitMove(move);
